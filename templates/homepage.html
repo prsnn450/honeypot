@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            overflow-x: hidden;
+        }
+        .container {
+            margin-top: 40px;
+            max-width: 1100px;
+            text-align: center;
+        }
+        h2 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            animation: fadeIn 1.5s ease-in-out;
+        }
+        .btn-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            font-size: 18px;
+            padding: 15px 30px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            background: #ff9800;
+            color: white;
+            border: none;
+        }
+        .btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0px 0px 15px rgba(255, 255, 255, 0.6);
+            background: #e68900;
+        }
+        .content-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.5s ease-in-out;
+            backdrop-filter: blur(10px);
+            min-height: 200px;
+            overflow: hidden;
+        }
+        .chart-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .chart-box {
+            width: 45%;
+            min-width: 300px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center">Admin Dashboard</h2>
+        <p class="text-center text-light">Select a section to view details</p>
+
+        <div class="btn-container" id="button-container"></div>
+
+        <div id="content-container" class="content-container">
+            <h4 class="text-light">Click a section to view details.</h4>
+            <div class="chart-container">
+                <div class="chart-box">
+                    <canvas id="dataChart"></canvas>
+                </div>
+                <div class="chart-box">
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const params = new URLSearchParams(window.location.search);
+            const dataType = params.get("data_type") || "fake";
+
+            const sections = [
+                "User Management", "Financial Reports", "Database Access",
+                "API Keys", "Admin Credentials", "Backup Files", "System Logs","Security Logs", "Analytics",
+		 "System Configurations",
+            ];
+
+            const buttonContainer = document.getElementById("button-container");
+            const contentContainer = document.getElementById("content-container");
+            let chartInstance = null;
+            let pieChartInstance = null;
+
+            sections.forEach(section => {
+                const button = document.createElement("button");
+                button.className = "btn fw-bold";
+                button.textContent = section;
+                button.onclick = () => fetchData(section);
+                buttonContainer.appendChild(button);
+            });
+
+            function fetchData(section) {
+    fetch(`/get_data/${encodeURIComponent(section)}?data_type=${dataType}`)
+        .then(response => response.json())
+        .then(data => {
+            contentContainer.innerHTML = `<h4 class="text-light">${section}</h4>`;
+
+            if (Array.isArray(data)) {
+                const list = document.createElement("ul");
+                list.className = "list-group list-group-flush";
+                data.forEach(item => {
+                    const listItem = document.createElement("li");
+                    listItem.className = "list-group-item bg-light text-dark";
+                    listItem.textContent = typeof item === "object" ? JSON.stringify(item, null, 2) : item;
+                    list.appendChild(listItem);
+                });
+                contentContainer.appendChild(list);
+            } else if (typeof data === "object") {
+                Object.entries(data).forEach(([key, value]) => {
+                    const para = document.createElement("p");
+                    para.className = "text-light";
+                    para.innerHTML = `<strong>${key}:</strong> ${value}`;
+                    contentContainer.appendChild(para);
+                });
+            } else {
+                contentContainer.innerHTML += `<p class="text-light">${data}</p>`;
+            }
+
+            drawCharts(section);
+
+            // Log interaction when a section is accessed
+            fetch('/log_interaction', {
+                method: 'POST',
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ section })
+            })
+            .then(response => response.json())
+            .then(logResponse => console.log("Interaction logged:", logResponse))
+            .catch(error => console.error("Error logging interaction:", error));
+        })
+        .catch(error => console.error("Error fetching data:", error));
+}
+
+
+            function drawCharts(section) {
+                const chartCanvas = document.getElementById("dataChart");
+                const pieCanvas = document.getElementById("pieChart");
+
+                if (chartInstance) chartInstance.destroy();
+                if (pieChartInstance) pieChartInstance.destroy();
+
+                const randomData = Array.from({ length: 7 }, () => Math.floor(Math.random() * 100));
+
+                const ctx = chartCanvas.getContext("2d");
+                chartInstance = new Chart(ctx, {
+                    type: "bar",
+                    data: {
+                        labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
+                        datasets: [{
+                            label: section + " Data",
+                            data: randomData,
+                            backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#2ECC71"],
+                            borderColor: "rgba(255, 255, 255, 0.8)",
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: "white" } }
+                        },
+                        scales: {
+                            x: { ticks: { color: "white" } },
+                            y: { ticks: { color: "white" } }
+                        }
+                    }
+                });
+
+                const pieCtx = pieCanvas.getContext("2d");
+                pieChartInstance = new Chart(pieCtx, {
+                    type: "pie",
+                    data: {
+                        labels: ["Admins", "Managers", "Users", "Guests"],
+                        datasets: [{
+                            label: "User Role Distribution",
+                            data: [10, 15, 50, 25],
+                            backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0"],
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { labels: { color: "white" } }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

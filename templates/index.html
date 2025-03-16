@@ -1,0 +1,15 @@
+<!-- Confidential Files -->
+<h2 class="mt-5 text-white">Confidential Files</h2>
+<ul class="list-group">
+    {% if files %}
+        {% for file in files %}
+            <li class="list-group-item">
+                <a href="{{ url_for('honeypot_files', filename=file) }}" class="text-dark">
+                    {{ file }}
+                </a>
+            </li>
+        {% endfor %}
+    {% else %}
+        <li class="list-group-item text-danger">No files found.</li>
+    {% endif %}
+</ul>
